@@ -44,6 +44,7 @@
     border-radius: 50%;
     text-indent: -9999em;
     animation: load-effect 1s infinite linear;
+    transform: translate3d(0, 0, 0);
   }
   .loading-text{
     display: block;

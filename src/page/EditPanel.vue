@@ -1,10 +1,11 @@
 <template>
   <transition name="fade" @after-enter="afterEnter">
     <div class="edit-panel">
-      <img :src="fusionImg">
+      <loading v-show="isLoading"/>
+
       <div class="corner-back">
         <a @click="closePanel">
-          <icon name="back" scale="2.5" style="color:#00ccaa"></icon>
+          <icon name="back" scale="2.5" style="color:#00ccaa"/>
         </a>
       </div>
       <div class="edit-canvas-container" id="edit-canvas-container">
@@ -17,14 +18,20 @@
 
         <div class="pen-bar">
           <a @click="togglePen">
-            <icon :name="penIcon" scale="10"></icon>
+            <icon :name="penIcon" scale="10"/>
           </a>
         </div>
         <div class="clear-btn">
-          <button v-on:click="clear">清除</button>
+          <!--<button v-on:click="clear">清除</button>-->
+          <a @click="clear">
+            <icon name="pen_clear" scale="10"/>
+          </a>
         </div>
         <div class="save-btn">
-          <button v-on:click="save">保存</button>
+          <!--<button v-on:click.once="save">保存</button>-->
+          <a @click.once="save">
+            <icon name="pen_save" scale="10"/>
+          </a>
         </div>
       </div>
 
@@ -34,6 +41,8 @@
 
 <script>
   import Lodash from 'lodash'
+  import Bus from '../common/Bus'
+  import Loading from '@/components/Loading'
 
   const preHandler = function (e) {
     e.preventDefault();
@@ -41,6 +50,7 @@
 
   class Draw {
     constructor(el) {
+      this.operationStack = [];
       this.el = el;
       this.canvas = document.getElementById(this.el);
       this.ctx = this.canvas.getContext('2d');
@@ -70,7 +80,6 @@
     }
 
     drawBegin(e) {
-      console.log("draw begin")
       let _this = this;
       window.getSelection() ? window.getSelection().removeAllRanges() : document.selection.empty()
       let penWidth = 0.8 * 18;
@@ -90,7 +99,6 @@
     }
 
     drawing(e) {
-      console.log("drawing")
       this.ctx.lineTo(
         e.changedTouches[0].clientX - this.stage_info.left,
         e.changedTouches[0].clientY - this.stage_info.top
@@ -101,15 +109,16 @@
     }
 
     drawEnd() {
-      console.log("drawend")
       document.removeEventListener('touchstart', preHandler, false);
       document.removeEventListener('touchend', preHandler, false);
       document.removeEventListener('touchmove', preHandler, false);
+      this.operationStack.push("drawn");
       //canvas.ontouchmove = canvas.ontouchend = null
     }
 
     clear(btn) {
-      this.ctx.clearRect(0, 0, 10000, 10000)
+      this.ctx.clearRect(0, 0, 10000, 10000);
+      this.operationStack = [];
     }
 
     changeColor(color) {
@@ -120,13 +129,11 @@
       return this.canvas.toDataURL("image/png")
     }
 
-    restoreCtx() {
-      // this.ctx.restore();
-      // console.log('restore')
-    }
+
   }
 
   export default {
+    components: {Loading},
     data() {
       return {
         editCanvas: {},
@@ -146,7 +153,9 @@
         draw: {},
         penStatus: "front",
         penIcon: "frontpen",
-        fusionImg: ""
+        coverImg: "",
+        shownImg: "",
+        isLoading: false
       }
     },
     props: ['panelState'],
@@ -162,8 +171,7 @@
     updated: function () {
 
     },
-    watch: {
-    },
+    watch: {},
     methods: {
       afterEnter: function (el) {
         this.initCanvas();
@@ -195,32 +203,45 @@
         this.draw.clear();
       },
       save: function () {
+        this.isLoading = true;
         let _this = this;
         let data = this.draw.save();
-        let imgData = document.getElementById("edit-img");
         let coverData = new Image();
         coverData.src = data;
         coverData.onload = function () {
-          let fusionImg = _this.imgFusion(imgData, coverData)
-          _this.fusionImg = fusionImg;
+          let srcImg = document.getElementById("edit-img");
+          _this.coverImg = _this.createCover(srcImg, coverData);
+          if (_this.draw.operationStack.length === 0) {
+            _this.shownImg = _this.compressImg(srcImg);
+            Bus.$emit('shownImg', _this.shownImg);
+          }
         };
 
       },
-      restoreCtx: function () {
-        this.draw.restoreCtx()
-      },
-      imgFusion: function (src, cover) {
+
+      createCover: function (src, cover) {
         let offscreenCanvas = document.createElement("Canvas");
         offscreenCanvas.width = src.naturalWidth;
         offscreenCanvas.height = src.naturalHeight;
         let canvasCtx = offscreenCanvas.getContext("2d");
-        canvasCtx.drawImage(src, 0, 0, src.naturalWidth, src.naturalHeight);
+        canvasCtx.fillStyle = "#00FF00";
+        canvasCtx.fillRect(0, 0, src.naturalWidth, src.naturalHeight);
         canvasCtx.drawImage(cover, 0, 0, src.naturalWidth, src.naturalHeight);
         //this.imgDetails.testUrl = offscreenCanvas.toDataURL("img/jpeg");
-        return offscreenCanvas.toDataURL("img/jpeg");
+        return offscreenCanvas.toDataURL("img/png");
       },
-      mutate(word) {
-        this.$emit("input", word);
+
+      compressImg: function (src) {
+        if (src.naturalWidth > 1000 || src.naturalHeight > 1000) {
+          let compressCanvas = document.createElement("Canvas");
+          compressCanvas.width = 1000;
+          compressCanvas.height = 1000 / src.naturalWidth * src.naturalHeight;
+          let canvasCtx = compressCanvas.getContext("2d");
+          canvasCtx.drawImage(src, 0, 0, compressCanvas.width, compressCanvas.height)
+          return compressCanvas.toDataURL("img/jpeg", 0.5);
+        } else {
+          return src.src;
+        }
       }
     }
   }
@@ -228,12 +249,12 @@
 
 <style scoped>
   .fade-enter-active, .fade-leave-active {
-    transform: translate3d(0,0,0);
+    transform: translate3d(0, 0, 0);
     left: 0;
   }
 
   .fade-enter, .fade-leave-to {
-    transform: translate3d(0,0,0);
+    transform: translate3d(0, 0, 0);
     left: -100%;
   }
 

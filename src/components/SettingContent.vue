@@ -1,16 +1,14 @@
 <template>
   <div class="setting-content" :style="contentStyle">
-    <loading v-if="isLoading"/>
+    <loading v-show="isLoading"/>
     <router-view/>
-
-    <!--<edit-panel :panelState="panelState" @closePanel="panelState = false"/>-->
     <div id="bia-production-head">
       <p>bia-production-head</p>
     </div>
     <div id="center-canvas-container" :style="canvasContainer">
       <div class="canvas-container">
-        <canvas class="lower-canvas"></canvas>
-        <canvas class="upper-canvas"></canvas>
+        <canvas class="lower-canvas" id="lower-canvas"></canvas>
+        <canvas class="upper-canvas" id="upper-canvas"></canvas>
       </div>
     </div>
     <div class="tools-bar">
@@ -30,13 +28,11 @@
   import Lodash from 'lodash'
   import Bus from '../common/Bus'
   import qs from 'querystring'
-  import EditPanel from '../page/EditPanel'
   import Loading from '@/components/Loading'
 
   export default {
     name: "setting-content",
     components: {
-      EditPanel,
       Loading
     },
     data() {
@@ -47,10 +43,13 @@
         canvasContainer: {
           height: '16px'
         },
+        upperCanvas: {},
         panelState: false,
         imgDetails: {
-          url: './static/img/rabbit.bmp'
+          url: ''
         },
+        clothesImg: './static/img/clothes.png',
+        shownImg: "",
         isLoading: false
       }
     },
@@ -62,11 +61,26 @@
         _this.contentHeightCalc();
         _this.canvasContainerHeightCalc();
       }, 400);
+      this.upperCanvas = document.getElementById('upper-canvas');
+      let lowerCanvas = document.getElementById('lower-canvas');
+      let lowerCtx = lowerCanvas.getContext('2d');
+      let clothesImg = new Image();
+      clothesImg.src = this.clothesImg;
+      clothesImg.onload = function () {
+        lowerCtx.drawImage(clothesImg, 0, 0, lowerCanvas.width, lowerCanvas.height);
+      };
+      Bus.$on('shownImg', function (val) {
+        _this.shownImg = val;
+        let materialImg = new Image();
+        materialImg.src = _this.shownImg;
+        materialImg.onload = function () {
+          let thisCtx = _this.upperCanvas.getContext('2d');
+          thisCtx.drawImage(materialImg, 0, 0, _this.upperCanvas.width * 0.5, _this.upperCanvas.height * 0.5);
+          _this.$router.go(-1)
+        }
+      })
     },
     watch: {
-      '$route': function () {
-        console.log("父组件")
-      }
     },
     methods: {
       contentHeightCalc: function () {
@@ -74,7 +88,7 @@
         Bus.$emit('trans', this.contentStyle.height)
       },
       canvasContainerHeightCalc: function () {
-        this.canvasContainer.height = document.getElementById('center-canvas-container').offsetWidth / 18 + 2 + "rem";
+        this.canvasContainer.height = document.getElementById('center-canvas-container').offsetWidth * 650 / 605 + "px"; //hack
       },
       upload: function (e) {
         this.isLoading = true;
@@ -85,7 +99,7 @@
         reader.readAsDataURL(file);
         reader.onload = function () {
           let base64Url = this.result;
-          _this.imgDetails.url = base64Url
+          _this.imgDetails.url = base64Url;
           _this.$router.push({path: '/edit', query: {imgDetails: _this.imgDetails}}, function () {
             e.target.value = '';
             _this.isLoading = false;
@@ -101,7 +115,7 @@
         };
         let param = new FormData(); //创建form对象
         param.append('file', file);//通过append向form对象添加数据
-        param.append('key', 'biaker/'+date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate()+'/'+date.valueOf()+'.'+type[type.length-1])
+        param.append('key', 'biaker/' + date.getFullYear() + '/' + (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.valueOf() + '.' + type[type.length - 1])
         //param.append('chunk', '0');//添加form表单中其他数据
 
         let config = {
@@ -116,8 +130,8 @@
           })
       },
       uploadTo: function (param, config) {
-        this.$axios.post('http://upload-z2.qiniup.com/',param,config)
-          .then(response=>{
+        this.$axios.post('http://upload-z2.qiniup.com/', param, config)
+          .then(response => {
             console.log(response.data);
           })
       }
@@ -145,7 +159,7 @@
   }
 
   #center-canvas-container {
-    margin: 1.5rem 2rem 0 2rem;
+    margin: 0.8rem 3rem 0 3rem;
     position: relative;
     text-align: center;
     overflow: hidden;
