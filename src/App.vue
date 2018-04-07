@@ -2,21 +2,18 @@
   <div id="app">
     <setting-title/>
     <setting-content/>
-    <setting-bottom/>
   </div>
 </template>
 
 <script>
   import SettingTitle from './components/SettingTitle'
   import SettingContent from './components/SettingContent'
-  import SettingBottom from './components/SettingBottom'
   import EditPanel from './page/EditPanel'
   export default {
     name: 'App',
     components: {
       SettingTitle,
       SettingContent,
-      SettingBottom,
       EditPanel
     }
   }
