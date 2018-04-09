@@ -15,15 +15,35 @@
     </div>
 
     <div class="tools-bar">
-      <div class="tools-item" style="display: none;">
-        <!--<div class="selected-item"></div>-->
+      <transition name="fade">
+        <div class="tools-item-filter" v-if="filterPanelState">
 
-      </div>
+        </div>
+        <div class="tools-item-clip" v-if="clipPanelState">
+          <div class="tools-item" v-for="clip in clipLib">
+            <a @click="setClipStyle(clip.name)">
+              <icon :name="'clip_' + clip.name" scale="14"></icon>
+            </a>
+            <span>{{clip.msg}}</span>
+          </div>
+        </div>
+        <div class="tools-item-effect" v-if="effectPanelState">
+          <div class="tools-item" v-for="effect in effectsLib">
+            <a @click="setEffect(effect.name)">
+              <icon :name="effect.name" scale="14"></icon>
+            </a>
+            <span>{{effect.msg}}</span>
+          </div>
+        </div>
+      </transition>
       <div class="tools-content">
-        <a @click="setMosaic">
+        <a @click="toggleFilterPanel">
           <icon name="coloricon" scale="2.4"></icon>
         </a>
-        <a>
+        <a @click="toggleClipPanel">
+          <icon name="clip" scale="4.8"></icon>
+        </a>
+        <a @click="toggleEffectPanel">
           <icon name="biaicon" scale="2.4"></icon>
         </a>
 
@@ -52,7 +72,7 @@
         <!--</a>-->
       </div>
       <div id="bia-group" v-if="upperCanvasState">
-        <a @click="">
+        <a @click="setEffect(effectNow)">
           <icon name="biaicon" scale="3.2"/>
           <span>加点特技</span>
         </a>
@@ -66,7 +86,7 @@
   import Bus from '../common/Bus'
   import qs from 'querystring'
   import Mosaic from '../common/SpecialEffects/Mosaic'
-  import Loading from '@/components/Loading'
+  import Loading from '../components/Loading'
 
   export default {
     name: "setting-content",
@@ -86,6 +106,11 @@
           height: 0,
           width: 0
         },
+        imgWidth: 0,
+        imgHeight: 0,
+        imgOffsetX: 0,
+        imgOffsetY: 0,
+
         upperCanvas: {},
         copyUpperCanvas: {},
         upperCanvasState: false,
@@ -95,7 +120,15 @@
         },
         clothesImg: './static/img/clothes.png',
         shownImg: "",
-        isLoading: false
+        isLoading: false,
+        effectsLib: [{name: 'none', msg: '清除效果'}, {name: 'mosaic', msg: '马赛克化'}],
+        clipLib: [{name: 'default', msg: '默认裁剪'}, {name: 'circle', msg: '圆形裁剪'}],
+        filterPanelState: false,
+        effectPanelState: false,
+        clipPanelState: false,
+        filterNow: 'none',
+        effectNow: 'none',
+        clipStyle: 'default'
       }
     },
     mounted: function () {
@@ -110,6 +143,7 @@
           clothesImg.src = this.clothesImg;
           clothesImg.onload = function () {
             lowerCtx.drawImage(clothesImg, 0, 0, lowerCanvas.width, lowerCanvas.height);
+
           };
         }
       );
@@ -129,24 +163,32 @@
       }, 400);
       Bus.$on('shownImg', function (val) {
         _this.shownImg = val;
-        let materialImg = new Image();
-        materialImg.src = _this.shownImg;
-        materialImg.onload = () => {
-          let thisCtx = _this.upperCanvas.getContext('2d');
-          thisCtx.clearRect(0, 0, 10000, 10000);
-          let scale = materialImg.width / materialImg.height;
-          let imgWidth = _this.upperCanvas.width * 0.36;
-          let imgHeight = imgWidth / scale;
-          thisCtx.drawImage(materialImg, (_this.upperCanvas.width - imgWidth) * 0.5, (_this.upperCanvas.height - imgHeight) * 0.5, imgWidth, imgHeight);
-          _this.upperCanvasState = true;
-          _this.$router.go(-1);
+        let thisCtx = _this.upperCanvas.getContext('2d');
+        thisCtx.clearRect(0, 0, 10000, 10000);
+        /*        let materialImg = new Image();
+                materialImg.src = _this.shownImg;
+                materialImg.onload = () => {
+                  let thisCtx = _this.upperCanvas.getContext('2d');
+                  thisCtx.clearRect(0, 0, 10000, 10000);
+                  let scale = materialImg.width / materialImg.height;
+                  let imgWidth = _this.imgWidth = _this.upperCanvas.width * 0.36;
+                  let imgHeight = _this.imgHeight = imgWidth / scale;
+                  _this.imgOffsetX = (_this.upperCanvas.width - imgWidth) * 0.5;
+                  _this.imgOffsetY = (_this.upperCanvas.height - imgHeight) * 0.5;
+                  thisCtx.drawImage(materialImg, _this.imgOffsetX, _this.imgOffsetY, _this.imgWidth, _this.imgHeight);
+                  _this.upperCanvasState = true;*/
+        _this.renderImg().then(
+          () => {
+            //copy canvas
+            _this.copyUpperCanvas = document.createElement('canvas');
+            _this.copyUpperCanvas.width = _this.upperCanvas.width;
+            _this.copyUpperCanvas.height = _this.upperCanvas.height;
+            _this.copyUpperCanvas.getContext('2d').drawImage(_this.upperCanvas, 0, 0)
+          });
+        _this.$router.go(-1);
 
-          //copy canvas
-          _this.copyUpperCanvas = document.createElement('canvas');
-          _this.copyUpperCanvas.width = _this.upperCanvas.width;
-          _this.copyUpperCanvas.height = _this.upperCanvas.height;
-          _this.copyUpperCanvas.getContext('2d').drawImage(_this.upperCanvas, 0, 0)
-        }
+
+        //}
       })
     },
     watch: {},
@@ -158,8 +200,8 @@
       canvasContainerHeightCalc: function () {
         return new Promise((resolve) => {
           this.canvasContainer.height = document.getElementById('center-canvas-container').offsetWidth * 650 / 605 + "px"; //hack
-          this.innerCanvasSize.height = parseInt(this.canvasContainer.height);
-          this.innerCanvasSize.width = document.getElementById('center-canvas-container').offsetWidth;
+          this.innerCanvasSize.height = 1290;//parseInt(this.canvasContainer.height);
+          this.innerCanvasSize.width = 1200;//document.getElementById('center-canvas-container').offsetWidth;
           resolve();
         })
       },
@@ -172,8 +214,7 @@
         let reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = function () {
-          let base64Url = this.result;
-          _this.imgDetails.url = base64Url;
+          _this.imgDetails.url = this.result;
           _this.$router.push({path: '/edit', query: {imgDetails: _this.imgDetails}}, function () {
             e.target.value = '';
             _this.isLoading = false;
@@ -189,7 +230,7 @@
         };
         let param = new FormData(); //创建form对象
         param.append('file', file);//通过append向form对象添加数据
-        param.append('key', 'biaker/' + date.getFullYear() + '/' + (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.valueOf() + '.' + type[type.length - 1])
+        param.append('key', 'biaker/' + date.getFullYear() + '/' + (date.getMonth() + 1) + '/' + date.getDate() + '/' + date.valueOf() + '.' + type[type.length - 1]);
         //param.append('chunk', '0');//添加form表单中其他数据
 
         let config = {
@@ -210,20 +251,60 @@
           })
       },
 
-      setMosaic: function () {
+      renderImg: function () {
+        return new Promise((resolve) => {
+          let materialImg = new Image();
+          materialImg.src = this.shownImg;
+          materialImg.onload = () => {
+            let thisCtx = this.upperCanvas.getContext('2d');
+            let scale = materialImg.width / materialImg.height;
+            let imgWidth = this.imgWidth = this.upperCanvas.width * 0.36;
+            let imgHeight = this.imgHeight = imgWidth / scale;
+            this.imgOffsetX = (this.upperCanvas.width - imgWidth) * 0.5;
+            this.imgOffsetY = (this.upperCanvas.height - imgHeight) * 0.5;
+            thisCtx.drawImage(materialImg, this.imgOffsetX, this.imgOffsetY, this.imgWidth, this.imgHeight);
+            this.upperCanvasState = true;
+            resolve();
+          }
+        });
 
+      },
+      toggleEffectPanel: function () {
+        this.effectPanelState = !this.effectPanelState;
+        this.clipPanelState = false;
+        this.filterPanelState = false;
+      },
+      toggleFilterPanel: function () {
+        this.filterPanelState = !this.filterPanelState;
+        this.clipPanelState = false;
+        this.effectPanelState = false;
+      },
+      toggleClipPanel: function () {
+        this.clipPanelState = !this.clipPanelState;
+        this.effectPanelState = false;
+        this.filterPanelState = false;
+      },
+      setClipStyle: function (shape) {
+        //let thisCtx = this.upperCanvas.getContext('2d');
+        this.upperCanvas.width = this.upperCanvas.width;
+        //thisCtx.clearRect(0, 0, 10000, 10000);
+        //thisCtx.save()
+        this.clipStyle = shape;
+        this.clipCanvas(shape);
+        this.renderImg();
+        //this.renderImg();
+        //thisCtx.restore()
+      },
+      setMosaic: function (opt) {
         this.resetCanvas().then(() => {
-          Mosaic(this.copyUpperCanvas, [{
-            shape: 'diamond',
-            resolution: 12,
-            size: 8,
-            offset: 12,
-            alpha: 0.5
-          }])
+          Mosaic(this.copyUpperCanvas)
             .then((arg) => {
-              console.log(arg);
               this.upperCanvas.getContext('2d').clearRect(0, 0, 10000, 10000);
-              this.upperCanvas.getContext('2d').drawImage(arg, 0, 0)
+
+              this.upperCanvas.getContext('2d').save();
+              this.clipCanvas(this.clipStyle);
+              this.upperCanvas.getContext('2d').drawImage(arg, 0, 0);
+              this.upperCanvas.getContext('2d').restore();
             })
         })
       },
@@ -234,6 +315,45 @@
           this.upperCanvas.getContext('2d').drawImage(this.copyUpperCanvas, 0, 0);
           resolve();
         })
+      },
+
+
+      setEffect: function (opt) {
+        if (this.upperCanvasState) {
+          this.effectNow = opt;
+          switch (opt) {
+            case 'mosaic':
+              this.setMosaic();
+              break;
+            default:
+              this.resetCanvas();
+          }
+        }
+      },
+
+      clipCanvas: function (shape) {
+        console.log(shape);
+        console.log(this.clipStyle)
+        let thisCtx = this.upperCanvas.getContext('2d');
+        thisCtx.strokeStyle = 'rgba(0,0,0,0)';
+        thisCtx.fillStyle = 'rgba(0,0,0,0)';
+        switch (shape) {
+          case 'circle':
+            thisCtx.beginPath();
+            thisCtx.arc(this.imgOffsetX + 0.5 * this.imgWidth,
+              this.imgOffsetY + 0.5 * this.imgHeight,
+              0.5 * ((this.imgWidth < this.imgHeight) ? this.imgWidth : this.imgHeight),
+              0, Math.PI * 2);
+            thisCtx.fill();
+            thisCtx.clip();
+            break;
+          default:
+            thisCtx.beginPath();
+            thisCtx.rect(this.imgOffsetX, this.imgOffsetY, this.imgWidth, this.imgHeight);
+            thisCtx.fill();
+            thisCtx.clip();
+        }
+
       }
     }
   }
@@ -273,15 +393,35 @@
     height: 100%;
   }
 
-  .tools-item {
+  .tools-item-effect, .tools-item-clip, .tools-item-filter {
     width: 60%;
-    height: 10rem;
+    /*height: 10rem;*/
     color: #00ccaa;
     background-color: #fff;
     border: 1px solid #00ccaa;
     border-radius: 1rem;
     padding: 0.2rem 0.625rem 0.2rem;
     margin-bottom: 0.25rem;
+
+    display: flex;
+    flex-wrap: wrap;
+    /*align-items: center;*/
+    justify-content: space-around;
+  }
+
+  .tools-item {
+    width: 28%;
+    border: 1px solid #00ccaa;
+    border-radius: 0.5rem;
+    margin: 0.625rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .tools-item span {
+    font-size: 0.625rem;
+    margin-bottom: 0.125rem;
   }
 
   .tools-bar {
@@ -356,5 +496,16 @@
     display: block;
     font-size: 0.5rem;
     color: #00ccaa;
+  }
+
+  .fade-enter-active, .fade-leave-active {
+    transform: translate3d(0, 0, 0);
+    transition: all 0.1s linear;
+    opacity: 1;
+  }
+
+  .fade-enter, .fade-leave-to {
+    transition: all 0.1s linear;
+    opacity: 0;
   }
 </style>

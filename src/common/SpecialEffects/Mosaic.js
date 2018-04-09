@@ -63,7 +63,6 @@ ClosePixelation.prototype.renderClosePixels = function (opts) {
   let h = this.height
   let ctx = this.ctx
   let imgData = this.imgData
-
   // option defaults
   let res = opts.resolution || 16
   let size = opts.size || res
@@ -98,7 +97,7 @@ ClosePixelation.prototype.renderClosePixels = function (opts) {
       x = (col - 0.5) * res + offsetX
       // normalize y so shapes around edges get color
       pixelX = Math.max(Math.min(x, w - 1), 0)
-      pixelIndex = (pixelX + pixelY * w) * 4
+      pixelIndex = Math.floor((pixelX + pixelY * w) * 4)
       red = imgData[pixelIndex + 0]
       green = imgData[pixelIndex + 1]
       blue = imgData[pixelIndex + 2]
@@ -127,9 +126,51 @@ ClosePixelation.prototype.renderClosePixels = function (opts) {
     } // col
   } // row
 
+};
+
+
+export default function Mosaic(obj) {
+  let index = Math.floor(Math.random() * SETTING.length);
+  return new ClosePixelation(obj, SETTING[index])
 }
 
 
-export default function Mosaic(obj, opt) {
-  return new ClosePixelation(obj, opt)
-}
+const SETTING = [
+  [{
+    shape: 'circle',
+    resolution: 44,
+    size: 36,
+    offset: 44,
+    alpha: 0.5
+  }],
+  [{
+    shape: 'square',
+    resolution: 44,
+    size: 36,
+    offset: 44,
+    alpha: 0.5
+  }],
+  [{
+    shape: 'diamond',
+    resolution: 44,
+    size: 36,
+    offset: 44,
+    alpha: 0.5
+  }],
+  [{ resolution: 48 },
+    { shape: 'diamond', resolution: 48, offset: 12, alpha: 0.5  },
+    { shape: 'diamond', resolution: 48, offset: 36, alpha: 0.5  },
+    { shape: 'circle', resolution: 16, size: 8, offset: 4, alpha: 0.5 }],
+  [{ shape: 'diamond', resolution: 48, size: 50 },
+    { shape: 'diamond', resolution: 48, offset: 24 },
+    { resolution: 48, alpha: 0.5 }],
+  [{ shape : 'square', resolution : 48, offset: 24 },
+    { shape : 'circle', resolution : 48, offset : 0 },
+    { shape : 'diamond', resolution : 16, size: 15, offset : 0, alpha : 0.6 },
+    { shape : 'diamond', resolution : 16, size: 15, offset : 8, alpha : 0.6 }],
+  [{ shape : 'circle', resolution : 36 },
+    { shape : 'circle', resolution : 36, size: 16, offset: 19 }],
+  [{ shape : 'diamond', resolution : 48, size: 50 },
+    { shape : 'diamond', resolution : 48, offset : 24 },
+    { shape : 'circle', resolution : 8, size: 6 }]
+];
