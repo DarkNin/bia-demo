@@ -1,4 +1,3 @@
-
 const TWO_PI = Math.PI * 2;
 const QUARTER_PI = Math.PI * 0.25;
 
@@ -123,7 +122,31 @@ ClosePixelation.prototype.renderClosePixels = function (opts) {
       } // switch
     } // col
   } // row
+  window.onload = function () {
 
+    function Test(Dom) {
+      this.Dom = Dom;
+      this.str = '';
+      this.A = function () {
+        this.str = '123';
+      }
+      this.dom.addEventListener('click', self.A, false);
+    }
+
+    Test.prototype.destroy = function () {
+      var self = this;
+      this.dom.removeEventListener('click', self.A, false);
+    }
+    var div1 = document.getElementsByClassName('div1')[0];
+    var myTest = new Test(div1);
+
+//点击div2,销毁Test对象
+    var div2Obj = document.getElementsByClassName('div2')[0];
+    div2Obj.onclick = function () {
+      myTest.destroy();
+      myTest = null;
+    }
+  }
 };
 
 
@@ -134,7 +157,8 @@ export default function Mosaic(obj) {
 
 
 const SETTING = [
-  [{shape: 'circle', resolution: 44,
+  [{
+    shape: 'circle', resolution: 44,
     size: 36,
     offset: 44,
     alpha: 0.5
@@ -153,20 +177,20 @@ const SETTING = [
     offset: 44,
     alpha: 0.5
   }],
-  [{ resolution: 48 },
-    { shape: 'diamond', resolution: 48, offset: 12, alpha: 0.5  },
-    { shape: 'diamond', resolution: 48, offset: 36, alpha: 0.5  },
-    { shape: 'circle', resolution: 16, size: 8, offset: 4, alpha: 0.5 }],
-  [{ shape: 'diamond', resolution: 48, size: 50 },
-    { shape: 'diamond', resolution: 48, offset: 24 },
-    { resolution: 48, alpha: 0.5 }],
-  [{ shape : 'square', resolution : 48, offset: 24 },
-    { shape : 'circle', resolution : 48, offset : 0 },
-    { shape : 'diamond', resolution : 16, size: 15, offset : 0, alpha : 0.6 },
-    { shape : 'diamond', resolution : 16, size: 15, offset : 8, alpha : 0.6 }],
-  [{ shape : 'circle', resolution : 36 },
-    { shape : 'circle', resolution : 36, size: 16, offset: 19 }],
-  [{ shape : 'diamond', resolution : 48, size: 50 },
-    { shape : 'diamond', resolution : 48, offset : 24 },
-    { shape : 'circle', resolution : 8, size: 6 }]
+  [{resolution: 48},
+    {shape: 'diamond', resolution: 48, offset: 12, alpha: 0.5},
+    {shape: 'diamond', resolution: 48, offset: 36, alpha: 0.5},
+    {shape: 'circle', resolution: 16, size: 8, offset: 4, alpha: 0.5}],
+  [{shape: 'diamond', resolution: 48, size: 50},
+    {shape: 'diamond', resolution: 48, offset: 24},
+    {resolution: 48, alpha: 0.5}],
+  [{shape: 'square', resolution: 48, offset: 24},
+    {shape: 'circle', resolution: 48, offset: 0},
+    {shape: 'diamond', resolution: 16, size: 15, offset: 0, alpha: 0.6},
+    {shape: 'diamond', resolution: 16, size: 15, offset: 8, alpha: 0.6}],
+  [{shape: 'circle', resolution: 36},
+    {shape: 'circle', resolution: 36, size: 16, offset: 19}],
+  [{shape: 'diamond', resolution: 48, size: 50},
+    {shape: 'diamond', resolution: 48, offset: 24},
+    {shape: 'circle', resolution: 8, size: 6}]
 ];

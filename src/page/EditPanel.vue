@@ -9,8 +9,8 @@
         </a>
       </div>
       <div class="edit-canvas-container" id="edit-canvas-container">
-        <img v-bind:src="imgDetails.url" id="edit-img" @load="canvasSizeCalc">
-        <!--<img v-bind:src="imgDetails.url" id="edit-img">-->
+        <img v-bind:src="imgDetails.url" @load="imgHandler" style="display: none;">
+        <img v-bind:src="afterHandleImg" id="edit-img" @load="canvasSizeCalc" v-show="!handleState">
         <canvas class="canvas-container" id="edit-canvas" :width="canvasSize.width"
                 :height="canvasSize.height"></canvas>
       </div>
@@ -138,7 +138,8 @@
       return {
         editCanvas: {},
         imgDetails: {
-          url: ''
+          url: '',
+          orientation: ''
 
         },
         canvasSize: {
@@ -155,7 +156,9 @@
         penIcon: "frontpen",
         coverImg: "",
         shownImg: "",
-        isLoading: false
+        isLoading: false,
+        handleState: false,
+        afterHandleImg: ''
       }
     },
     props: ['panelState'],
@@ -242,6 +245,52 @@
         } else {
           return src.src;
         }
+      },
+      imgHandler: function (e) {
+        let ori = this.imgDetails.orientation;
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        if (ori === 6 || ori === 8 || ori === 3) {
+          switch (ori) {
+            case 6: //需左旋转90°
+              canvas.width = e.target.naturalHeight;
+              canvas.height = e.target.naturalWidth;
+              ctx.rotate(0.5 * Math.PI)
+              ctx.drawImage(e.target, 0, -e.target.naturalHeight);
+              this.afterHandleImg = canvas.toDataURL();
+              console.log('case: 1')
+              break;
+            case 8: //需右旋转90°
+              canvas.width = e.target.naturalHeight;
+              canvas.height = e.target.naturalWidth;
+              ctx.rotate(-0.5 * Math.PI)
+              ctx.drawImage(e.target, -e.target.naturalWidth, 0);
+              this.afterHandleImg = canvas.toDataURL();
+              console.log('case: 2')
+              break;
+            case 3: //颠倒
+              canvas.width = e.target.naturalHeight;
+              canvas.height = e.target.naturalWidth;
+              ctx.rotate(Math.PI)
+              ctx.drawImage(e.target, -e.target.naturalWidth, -e.target.naturalHeight);
+              this.afterHandleImg = canvas.toDataURL();
+              console.log('case: 3')
+              break;
+
+
+          }
+        } else {
+          this.afterHandleImg = this.imgDetails.url;
+          this.handleState = false;
+          console.log('case: 0')
+        }
+        document.getElementById('edit-img').onload = () => {
+          this.canvasSizeCalc();
+          Bus.$emit('stopLoading');
+        }
+      },
+      rotateImg: function () {
+
       }
     }
   }

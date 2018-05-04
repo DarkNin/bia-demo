@@ -9,13 +9,17 @@
       <!--<p>{{n}}</p>-->
       <!--</div>-->
       <!--</div>-->
-      <img src="/static/img/rabbit.bmp" id="picture" :class="{shake: isShake}">
-      <div><p>{{suck}}</p></div>
-      <div><p>{{info.speed}}</p></div>
-      <div><p>{{accelerateAttr.x}}</p></div>
-      <div><p>{{accelerateAttr.y}}</p></div>
-      <div><p>{{accelerateAttr.z}}</p></div>
+      <!--<img src="/static/img/rabbit.bmp" id="picture" :class="{shake: isShake}">-->
+      <!--<div><p>{{suck}}</p></div>-->
+      <!--<div><p>{{info.speed}}</p></div>-->
+      <!--<div><p>{{accelerateAttr.x}}</p></div>-->
+      <!--<div><p>{{accelerateAttr.y}}</p></div>-->
+      <!--<div><p>{{accelerateAttr.z}}</p></div>-->
 
+      <video id="video" width="720" height="1280" autoplay style="width: 100%; height: 80%;">
+      </video>
+      <!--<button id="snap">snap</button>-->
+      <!--<canvas id="canvas" height="400" width="600"></canvas>-->
 
     </div>
   </transition>
@@ -28,33 +32,56 @@
   export default {
     data() {
       return {
-        figureGroup: [{
-          "name": "triangle"
-        }, {
-          "name": "square"
-        }],
-        isShake: false,
-        SHAKE_RATE: 150,
-        last_update: 0,
-        last_catch: 0,
-        accelerateAttr: {
-          x: 0,
-          y: 0,
-          z: 0,
-          last_x: 0,
-          last_y: 0,
-          last_z: 0
-        },
-        info: {
-          speed: 0
-        },
-        suck: 0
+        // figureGroup: [{
+        //   "name": "triangle"
+        // }, {
+        //   "name": "square"
+        // }],
+        // isShake: false,
+        // SHAKE_RATE: 150,
+        // last_update: 0,
+        // last_catch: 0,
+        // accelerateAttr: {
+        //   x: 0,
+        //   y: 0,
+        //   z: 0,
+        //   last_x: 0,
+        //   last_y: 0,
+        //   last_z: 0
+        // },
+        // info: {
+        //   speed: 0
+        // },
+        // suck: 0
+        videoObj: {
+          'video': {width: {min: 240}, height: {min: 320}, facingMode: 'environment'}
+        }
       }
     },
     mounted: function () {
-      if (window.DeviceMotionEvent) {
-        window.addEventListener('devicemotion', this.deviceMotionHandler, false)
+      // if (window.DeviceMotionEvent) {
+      //   window.addEventListener('devicemotion', this.deviceMotionHandler, false)
+      // }
+      //let canvas = document.getElementById('canvas');
+      //let ctx = canvas.getContext('2d');
+      // let video = document.getElementById('video');
+      // let errBack = function (error) {
+      //   console.log("Video capture error: ", error.code);
+      // };
+      //
+      if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia(this.videoObj)
+          .then((stream) => {
+            video.srcObject = stream;
+            video.play();
+          }).catch((err) => {
+            console.log('video error:' + err)
+        })
+
       }
+      // document.getElementById("snap").addEventListener("click", function() {
+      //   ctx.drawImage(video, 0, 0, 640, 480);
+      // });
 
 
     },
@@ -77,7 +104,7 @@
               this.isShake = true;
               this.last_catch = curTime;
               setTimeout(function () {
-                _this.suck ++;
+                _this.suck++;
                 _this.isShake = false;
               }, 400)
 

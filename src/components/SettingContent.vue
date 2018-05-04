@@ -4,7 +4,13 @@
     <router-view/>
 
     <div id="bia-production-head">
-      <p>{{suck}}</p>
+      <p>{{wow}}</p>
+    </div>
+    <div class="video-container">
+      <transition name="fade">
+        <video id="video" width="720" height="1280" class="video-style" autoplay v-show="videoState">
+        </video>
+      </transition>
     </div>
     <div id="center-canvas-container" :style="canvasContainer">
       <div class="canvas-container">
@@ -14,11 +20,15 @@
                 :height="innerCanvasSize.height"></canvas>
       </div>
     </div>
-
     <div class="tools-bar" v-if="upperCanvasState">
       <transition name="fade">
         <div class="tools-item-filter" v-if="filterPanelState">
-
+          <div class="tools-item" v-for="filter in filterLib">
+            <a @click="setFilter(filter.name)" style="margin-top: 1rem">
+              <icon name="image" scale="5"></icon>
+            </a>
+            <span>{{filter.msg}}</span>
+          </div>
         </div>
         <div class="tools-item-clip" v-if="clipPanelState">
           <div class="tools-item" v-for="clip in clipLib">
@@ -36,11 +46,11 @@
             <span>{{effect.msg}}</span>
           </div>
         </div>
-      <div class="tools-control" v-if="!effectPanelState && !clipPanelState && !filterPanelState">
-        <a @click="resetAll">
-          <icon name="restore" scale="3.2"></icon>
-        </a>
-      </div>
+        <div class="tools-control" v-if="!effectPanelState && !clipPanelState && !filterPanelState">
+          <a @click="resetAll">
+            <icon name="restore" scale="3.2"></icon>
+          </a>
+        </div>
       </transition>
       <div class="tools-content">
         <a @click="toggleFilterPanel">
@@ -54,8 +64,6 @@
         </a>
 
       </div>
-
-
     </div>
     <div class="setting-bottom">
       <div id="upload-group">
@@ -66,30 +74,24 @@
         <input id="capture-upload" style="display: none;" type="file" capture="camera"
                accept="image/jpeg,image/jpg,image/png" name="file"
                @change="upload">
-
       </div>
-      <!--<div id="figure-group">-->
-        <!--<router-link to="figure">-->
-          <!--<icon name="figureicon" scale="3.2"/>-->
-          <!--<span>使用图形</span>-->
-        <!--</router-link>-->
-      <!--</div>-->
-      <!--<div id="bia-group" v-if="upperCanvasState">-->
-        <!--<a>-->
-          <!--<icon name="biaicon" scale="3.2"/>-->
-          <!--<span>加点特技</span>-->
-        <!--</a>-->
-      <!--</div>-->
+      <div id="bia-group" v-if="upperCanvasState">
+        <a @click="createCamera">
+          <icon name="AR" scale="4.2"/>
+          <span>wow!</span>
+        </a>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
   import Lodash from 'lodash'
+  import EXIF from 'exif-js'
   import Bus from '../common/Bus'
-  import qs from 'querystring'
-  //import Mosaic from '../common/SpecialEffects/Mosaic'
+  import Filter from '../common/AddFilter'
   import {Mosaic} from '../common/AddEffect'
+  import StackBlur from 'stackblur-canvas'
   import Loading from '../components/Loading'
 
   export default {
@@ -132,7 +134,8 @@
 
         //所添加img的信息
         imgDetails: {
-          url: ''
+          url: '',
+          orientation: ''
         },
 
         //底图
@@ -140,7 +143,8 @@
         shownImg: "",
         constShownImg: "",
         isLoading: false,
-        effectsLib: [{name: 'none', msg: '清除效果'}, {name: 'mosaic', msg: '马赛克化'}],
+        filterLib: [{name: 'none', msg: '原图'}, {name: 'grey', msg: '黑白照'}, {name: 'sepia', msg: '旧照片'}],
+        effectsLib: [{name: 'none', msg: '清除效果'}, {name: 'mosaic', msg: '马赛克化'}, {name: 'blur', msg: '毛玻璃'}],
         clipLib: [{name: 'default', msg: '默认裁剪'},
           {name: 'circle', msg: '圆形裁剪'},
           {name: 'star', msg: '星形裁剪'},
@@ -166,7 +170,12 @@
           last_y: 0,
           last_z: 0
         },
-        suck: 0
+        suck: 0,
+        videoObj: {
+          'video': {width: {min: 240}, height: {min: 320}, facingMode: 'environment'}
+        },
+        videoState: false,
+        streamStack: {}
       }
     },
     mounted: function () {
@@ -228,7 +237,10 @@
 
 
         //}
-      });
+      })
+        .$on('stopLoading', function () {
+          _this.isLoading = false;
+        });
       if (window.DeviceMotionEvent) {
         window.addEventListener('devicemotion', function (e) {
           if (_this.effectNow !== 'none') {
@@ -236,6 +248,7 @@
           }
         }, false)
       }
+
     },
     watch: {},
     methods: {
@@ -252,6 +265,16 @@
         })
       },
 
+      checkExif: function (data) {
+        let _this = this;
+        return new Promise(resolve => {
+          EXIF.getData(data, () => {
+            let orientation = EXIF.getTag(data, 'Orientation');
+            resolve(orientation);
+          });
+        })
+
+      },
       upload: function (e) {
         this.isLoading = true;
         let _this = this;
@@ -259,10 +282,14 @@
         let reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = function () {
-          _this.imgDetails.url = this.result;
-          _this.$router.push({path: '/edit', query: {imgDetails: _this.imgDetails}}, function () {
-            e.target.value = '';
-            _this.isLoading = false;
+          let thisReader = this;
+          _this.checkExif(file).then((arg) => {
+            console.log('exif:' + arg)
+            _this.imgDetails.orientation = arg;
+            _this.imgDetails.url = thisReader.result;
+            _this.$router.push({path: '/edit', query: {imgDetails: _this.imgDetails}}, function () {
+              e.target.value = '';
+            })
           })
 
         };
@@ -329,24 +356,53 @@
         this.effectPanelState = false;
         this.filterPanelState = false;
       },
+      setFilter: function (style, canvas) {
+        return new Promise((resolve) => {
+          let thisCanvas = canvas || this.copyUpperCanvas;
+          if (this.upperCanvasState) {
+            this.filterNow = style;
+            Filter(thisCanvas, style).then((arg) => {
+              console.log(thisCanvas)
+              this.upperCanvas.getContext('2d').clearRect(0, 0, 10000, 10000);
+              this.upperCanvas.getContext('2d').drawImage(arg, 0, 0);
+              resolve();
+            });
+            if (this.filterPanelState) {
+              this.toggleFilterPanel();
+            }
+          }
+
+        })
+
+      },
       setClipStyle: function (shape) {
         this.upperCanvas.width = this.upperCanvas.width;
         this.clipStyle = shape;
         this.clipCanvas(shape);
-        this.renderImg(this.shownImg);
-        this.toggleClipPanel();
+        this.renderImg(this.shownImg).then(() => {
+
+          this.setFilter(this.filterNow);
+        });
+        if (this.clipPanelState) {
+          this.toggleClipPanel();
+        }
       },
       setMosaic: function (opt) {
         this.resetCanvas().then(() => {
-          Mosaic(this.copyUpperCanvas)
-            .then((arg) => {
-              this.upperCanvas.getContext('2d').clearRect(0, 0, 10000, 10000);
+          this.setFilter(this.filterNow).then(() => {
 
-              this.upperCanvas.getContext('2d').save();
-              this.clipCanvas(this.clipStyle);
-              this.upperCanvas.getContext('2d').drawImage(arg, 0, 0);
-              this.upperCanvas.getContext('2d').restore();
-            })
+            Mosaic(this.upperCanvas)
+              .then((arg) => {
+                this.upperCanvas.getContext('2d').clearRect(0, 0, 10000, 10000);
+                this.clipCanvas(this.clipStyle);
+                this.upperCanvas.getContext('2d').drawImage(arg, 0, 0);
+              })
+          });
+        })
+      },
+      setBlur: function (opt) {
+        this.setFilter(this.filterNow, this.upperCanvas).then(() => {
+          StackBlur.canvasRGBA(this.upperCanvas, 0, 0, this.innerCanvasSize.width, this.innerCanvasSize.height, 10)
         })
       },
 
@@ -373,8 +429,13 @@
             case 'mosaic':
               this.setMosaic();
               break;
+            case 'blur':
+              this.setBlur();
+              break;
             default:
-              this.resetCanvas();
+              this.resetCanvas().then(() => {
+                this.setFilter(this.filterNow);
+              });
           }
         }
         if (this.effectPanelState) {
@@ -463,7 +524,7 @@
               this.last_catch = curTime;
               setTimeout(function () {
                 _this.isShake = false;
-                _this.suck ++;
+                _this.suck++;
                 _this.setEffect(_this.effectNow);
               }, 400)
 
@@ -476,6 +537,26 @@
         this.last_y = this.accelerateAttr.y;
         this.last_z = this.accelerateAttr.z;
       },
+      createCamera: function () {
+        if (navigator.mediaDevices.getUserMedia && this.videoState === false) {
+          navigator.mediaDevices.getUserMedia(this.videoObj)
+            .then((stream) => {
+              video.srcObject = stream;
+              this.streamStack = stream.getTracks()[0];
+              video.play();
+              this.videoState = true;
+            }).catch((err) => {
+            console.log('video error:' + err)
+          })
+        } else if (this.videoState === true) {
+          video.pause();
+          this.streamStack.stop();
+          this.videoState = false;
+
+        } else {
+          alert('您的浏览器不支持此功能')
+        }
+      }
     }
   }
 </script>
@@ -504,6 +585,7 @@
     position: relative;
     text-align: center;
     overflow: hidden;
+    z-index: 200;
   }
 
   .canvas-container {
@@ -598,11 +680,10 @@
     justify-content: space-around;
   }
 
-
   .setting-bottom {
     position: absolute;
     bottom: 0;
-    z-index: 100;
+    z-index: 200;
     height: 3.5rem;
     width: 100%;
     border-top: 1px solid #e5e5e5;
@@ -610,6 +691,7 @@
     align-items: center;
     justify-content: space-around;
     flex-direction: row;
+    background-color: #fff;
   }
 
   #upload-group, #figure-group {
@@ -642,7 +724,24 @@
   #bia-group span, #figure-group span {
     display: block;
     font-size: 0.5rem;
-    color: #00ccaa;
+    color: #999999;
+  }
+
+  .video-container {
+
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+  }
+
+  .video-style {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .fade-enter-active, .fade-leave-active {

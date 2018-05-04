@@ -1,4 +1,4 @@
-export default function GrayScale(el){
+function GreyScale(el){
   let canvas = document.createElement('canvas');
   let w = canvas.width = el.offsetWidth,
     h = canvas.height = el.offsetHeight;
